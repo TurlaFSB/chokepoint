@@ -129,6 +129,8 @@ async def amain():
     ap.add_argument("--scenarios", default=",".join(base.SCENARIOS))
     ap.add_argument("--payloads", default=",".join(str(p) for p in base.PAYLOADS))
     ap.add_argument("--no-controls", action="store_true")
+    ap.add_argument("--controls-only", action="store_true",
+                    help="run only the clean control runs (no attacks)")
     ap.add_argument("--tag", default="")
     args = ap.parse_args()
 
@@ -143,6 +145,11 @@ async def amain():
     for p in sel_payloads:
         if p not in base.PAYLOADS:
             ap.error("unknown payload id: %d" % p)
+
+    if args.controls_only:
+        if args.no_controls:
+            ap.error("--controls-only and --no-controls cannot be combined")
+        sel_payloads = []
 
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", args.model)
     if args.tag:

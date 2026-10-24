@@ -76,9 +76,9 @@ pip install -r requirements.txt
 python agent_mcp.py qwen2.5:7b
 ```
 
-Results go to `results_mcp_<model>.jsonl` (resumable) and `results_mcp_<model>_summary.json`. The same filters as v2 are accepted.
+Results go to `results_mcp_<model>.jsonl` (resumable) and `results_mcp_<model>_summary.json`. The same filters as v2 are accepted, plus `--controls-only` (clean control runs only, no attacks), which is how the extra control seeds are collected without repeating the attack runs.
 
-Safeguards: at startup the tool definitions received from the servers are normalised and must be identical to the direct baseline's, otherwise the run stops, so the model sees the same tools in both harnesses. The error text for malformed tool arguments differs between the two harnesses (the MCP server returns its own validation message), so tool errors are counted per run (`tool_errors`). Verified with a scripted stand-in model: the direct and MCP harnesses gave identical results on all 108 runs, and on 27 runs in which the model sends malformed arguments. **Status: not yet run with the real model.**
+Safeguards: at startup the tool definitions received from the servers are normalised and must be identical to the direct baseline's, otherwise the run stops, so the model sees the same tools in both harnesses. The error text for malformed tool arguments differs between the two harnesses (the MCP server returns its own validation message), so tool errors are counted per run (`tool_errors`). Verified with a scripted stand-in model: the direct and MCP harnesses gave identical results on all 108 runs, and on 27 runs in which the model sends malformed arguments. **Status: smoke-tested with the real model** (Windows, Python 3.12.10, `mcp` 2.3.0): both servers start over stdio, the tool-definition parity check passes, and a 4-run smoke test completed with 0 tool errors. The full MCP baseline has not been run yet.
 
 ## Results so far
 
