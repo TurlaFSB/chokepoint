@@ -37,10 +37,11 @@ All experiments run locally against a local model, with fake data (a fake secret
 | `test_reliability.py` | 12-prompt check of tool-calling reliability, including prompts that need no tool. |
 | `agent_baseline.py` | Baseline v1: injection attack against an unprotected agent. |
 | `results_baseline_v1.json` | Raw per-run results of baseline v1. |
+| `agent_baseline_v2.py` | Baseline v2: two scenarios, eight payloads, configurable seeds, resumable. |
 
 ## Reproducing the baseline (Windows, PowerShell)
 
-Prerequisites: Python 3, [Ollama](https://ollama.com) running locally, and the model pulled:
+Prerequisites: Python 3.12 (results recorded with 3.12.10), [Ollama](https://ollama.com) running locally, and the model pulled:
 
 ```
 ollama pull qwen2.5:7b
@@ -53,6 +54,14 @@ python agent_baseline.py qwen2.5:7b
 ```
 
 The scripts connect explicitly to `127.0.0.1:11434`. `requirements.lock.txt` pins the exact versions used for the recorded results (for example `ollama==0.6.3`); `requirements.txt` lists direct dependencies only.
+
+### Baseline v2
+
+```
+python agent_baseline_v2.py qwen2.5:7b
+```
+
+Runs two scenarios ("summarize" and "followups", where the user's task legitimately involves acting on the document) against eight injection payloads (1-5 identical to v1, 6-8 new) plus clean controls, for 10 seeds each: 180 agent runs by default (`--seeds N` changes this). Each finished run is appended to `results_baseline_v2_<model>.jsonl`, so an interrupted run resumes when the same command is repeated. The summary, with 95% Wilson confidence intervals and the settings used, is written to `results_baseline_v2_<model>_summary.json`. For the runs shared with v1, the script reports how many gave the same outcome as v1, as a reproducibility check.
 
 ## Results so far
 
