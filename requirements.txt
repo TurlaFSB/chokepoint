@@ -1,3 +1,4 @@
 # Direct dependencies only.
 # Exact versions used for the recorded results are in requirements.lock.txt.
 ollama
+mcp>=2.3,<3
