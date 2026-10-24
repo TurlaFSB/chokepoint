@@ -46,13 +46,13 @@ Prerequisites: Python 3, [Ollama](https://ollama.com) running locally, and the m
 ollama pull qwen2.5:7b
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements.lock.txt
 python test_tools.py qwen2.5:7b
 python test_reliability.py qwen2.5:7b
 python agent_baseline.py qwen2.5:7b
 ```
 
-The scripts connect explicitly to `127.0.0.1:11434`. Exact dependency versions will be pinned in `requirements.lock.txt`.
+The scripts connect explicitly to `127.0.0.1:11434`. `requirements.lock.txt` pins the exact versions used for the recorded results (for example `ollama==0.6.3`); `requirements.txt` lists direct dependencies only.
 
 ## Results so far
 

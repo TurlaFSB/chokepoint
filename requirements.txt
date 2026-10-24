@@ -1,4 +1,3 @@
 # Direct dependencies only.
-# Exact pinned versions will be recorded in requirements.lock.txt, generated
-# from the project virtual environment, so results can be reproduced.
+# Exact versions used for the recorded results are in requirements.lock.txt.
 ollama
