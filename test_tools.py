@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import ollama
 
 model = sys.argv[1] if len(sys.argv) > 1 else "qwen2.5:7b"
