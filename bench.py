@@ -45,6 +45,17 @@ NOTES = WORK / "notes.jsonl"
 base.OUTBOX = OUTBOX          # base.score_outbox() reads this module global: one metric everywhere
 
 
+REQUEST_TIMEOUT = 300   # seconds for one model call; a stuck call stops the run (resumable) instead of hanging
+RUN_TIMEOUT = 1200      # seconds for one whole run, including the MCP servers
+
+
+def root_cause(e):
+    """The innermost real error of nested ExceptionGroups (the MCP library wraps errors in task groups)."""
+    while getattr(e, "exceptions", None):
+        e = e.exceptions[0]
+    return e
+
+
 class HarnessError(Exception):
     pass
 
@@ -135,9 +146,10 @@ async def run_agent(ochat, model, tools, route, gw, ctx, seed):
     final, hit_turn_limit = "", True
     ctx["calls"] = call_log
     for _ in range(base.MAX_TURNS):
-        r = await ochat.chat(model=model, messages=messages, tools=tools,
-                             options={"temperature": base.TEMPERATURE, "seed": seed,
-                                      "num_ctx": base.NUM_CTX})
+        r = await asyncio.wait_for(
+            ochat.chat(model=model, messages=messages, tools=tools,
+                       options={"temperature": base.TEMPERATURE, "seed": seed, "num_ctx": base.NUM_CTX}),
+            REQUEST_TIMEOUT)
         m = r.message
         messages.append(m)
         if not m.tool_calls:
@@ -342,9 +354,15 @@ async def amain():
         if totals:
             ochat.run_seen = set()
         try:
-            res = await one_run(ochat, args.model, gw_cls, kind, aid, t, seed, reference)
+            res = await asyncio.wait_for(one_run(ochat, args.model, gw_cls, kind, aid, t, seed, reference), RUN_TIMEOUT)
         except Exception as e:
-            print("ERROR on", kind, aid, t, seed, ":", repr(e))
+            cause = root_cause(e)
+            if isinstance(cause, (asyncio.TimeoutError, TimeoutError)):
+                print("TIMEOUT on", kind, aid, t, seed, "- a model or tool call did not answer in time"
+                      " (limits: %ds per model call, %ds per run)." % (REQUEST_TIMEOUT, RUN_TIMEOUT))
+                print("Check that Ollama is running (ollama ps), then run the same command again to resume.")
+            else:
+                print("ERROR on", kind, aid, t, seed, ":", repr(cause))
             print("Progress is saved. Fix the problem and run the same command again to resume.")
             sys.exit(1)
         row = {"harness": "bench", "model": args.model, "gateway": args.gateway,
