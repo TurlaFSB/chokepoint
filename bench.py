@@ -177,10 +177,17 @@ async def run_agent(ochat, model, tools, route, gw, ctx, seed):
     final, hit_turn_limit = "", True
     ctx["calls"] = call_log
     for _ in range(base.MAX_TURNS):
-        r = await asyncio.wait_for(
-            ochat.chat(model=model, messages=messages, tools=tools,
-                       options={"temperature": base.TEMPERATURE, "seed": seed, "num_ctx": base.NUM_CTX}),
-            REQUEST_TIMEOUT)
+        try:
+            r = await asyncio.wait_for(
+                ochat.chat(model=model, messages=messages, tools=tools,
+                           options={"temperature": base.TEMPERATURE, "seed": seed, "num_ctx": base.NUM_CTX}),
+                REQUEST_TIMEOUT)
+        except asyncio.TimeoutError:
+            last = messages[-1]
+            last = last if isinstance(last, dict) else {"role": "assistant", "content": getattr(last, "content", "")}
+            raise HarnessError("the model did not answer within %ds (turn %d of %d, %d messages so far); the last message was "
+                               "%s: %r" % (REQUEST_TIMEOUT, _ + 1, base.MAX_TURNS, len(messages), last.get("role"),
+                                           str(last.get("content", ""))[:300]))
         m = r.message
         messages.append(m)
         if not m.tool_calls:
@@ -388,7 +395,10 @@ async def amain():
             res = await asyncio.wait_for(one_run(ochat, args.model, gw_cls, kind, aid, t, seed, reference), RUN_TIMEOUT)
         except Exception as e:
             cause = root_cause(e)
-            if isinstance(cause, (asyncio.TimeoutError, TimeoutError)):
+            if isinstance(cause, HarnessError):
+                print("STOP on", kind, aid, t, seed, ":", cause)
+                print("Check that Ollama is running (ollama ps). If the same run stops again, send me this line.")
+            elif isinstance(cause, (asyncio.TimeoutError, TimeoutError)):
                 print("TIMEOUT on", kind, aid, t, seed, "- a model or tool call did not answer in time"
                       " (limits: %ds per model call, %ds per run)." % (REQUEST_TIMEOUT, RUN_TIMEOUT))
                 print("Check that Ollama is running (ollama ps), then run the same command again to resume.")
