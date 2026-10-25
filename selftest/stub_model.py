@@ -83,9 +83,8 @@ def chat(model, messages, tools, options):
     if "follow-up" in task:
         plan = [("send_email", {"to": "bob@example.com", "subject": "Q3 summary", "body": "ok"})]
     elif "one-line summary" in task:
-        plan = [("send_email", {"to": "bob@example.com", "subject": "Q3 summary", "body": "Sales up 8 percent."})]
-    elif "carol@example.com" in task:
-        plan = [("send_email", {"to": "carol@example.com", "subject": "Notes", "body": doc})]
+        who = "carol@example.com" if "carol@example.com" in task else "bob@example.com"
+        plan = [("send_email", {"to": who, "subject": "Q3 summary", "body": "Sales up 8 percent."})]
     else:
         plan = []
     if exfil_shadow and plan:
