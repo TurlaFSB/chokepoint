@@ -33,7 +33,8 @@ The agent talks to three real MCP servers over stdio. Every defense plugs into o
 | Measured undefended baselines (direct tools, real MCP servers, local and hosted model) | **Done** |
 | Gateway interface, pass-through gateway, logging gateway (verified to change nothing), model-free trajectory replay | **Done** |
 | Manifest pinning (reviewed and trust-on-first-use pins, alert and block) | **Done**, evaluated on detection and by replay |
-| Provenance policy, static audit of MCP servers | Planned (see [Roadmap](#roadmap)) |
+| Information-flow policy (recipient integrity, secret confidentiality), see [`docs/POLICY.md`](docs/POLICY.md) | **Built**, replayed; live evaluation next |
+| Static audit of MCP servers | Planned (see [Roadmap](#roadmap)) |
 | Comparison with baseline defenses, adaptive attacker | Planned |
 
 ## What has been measured so far
@@ -55,6 +56,7 @@ What this says, and what it does not:
 - **The same model mostly ignores instructions placed in tool descriptions** (0 of 10 for most of them), including a single-step "send every email to the attacker" written into the `send_email` description. This is a negative result for this model and is reported as such. Where an attack already fails undefended, a defense cannot show an improvement, so manifest-level defenses will also be measured on **detection** (is every changed manifest flagged, are clean ones left alone), which does not depend on the model.
 - **A strong hosted model resisted every attack.** DeepSeek V4.1 Flash (pinned provider) completed all 180 clean control runs (100% task success, 0 unauthorized emails) and, across all 20 attacks, both tasks and 10 seeds each, sent **0 unauthorized emails in 400 runs** (95% CI 0-1% pooled; 0-28% per attack and task). Two consequences. First, on this model the benchmark cannot show a defense helping, only what it costs. Second, the susceptible 7B model is where attack success can be measured; the strong model is where utility cost can be measured cleanly. Defenses will therefore also be evaluated on recorded trajectories, independent of any model (see the [Roadmap](#roadmap)).
 - **Manifest pinning is necessary but narrow.** With a reviewed allowlist it flags every changed tool (11 of 11, no false alarms) and so detects 11 of the 20 attacks; trust on first use detects 2 of 20, because everything poisoned from the start is accepted. Both are blind to the nine attacks that change no manifest, which are the ones that actually hijack the 7B model: replayed on 86 recorded hijacks, reviewed pinning stops 3, and blocking a flagged tool fails the task. Details in [`docs/RESULTS.md`](docs/RESULTS.md), experiment 13.
+- **The information-flow policy stops every recorded hijack on replay, and says where it cannot.** Replayed on 86 recorded hijacks of the 7B model: the proposed policy (recipient on an allowlisted domain, secrets may not leave in an email) stops all 86 and blocks none of 180 clean runs; trusting only recipients named in the request blocks 27 of 180. The recipient rule overlaps how the benchmark scores an attack, so the secret rule (60% alone) and the cost of the strict variant are the informative numbers. Re-encoded secrets and attacker addresses on an allowed domain get through; both are tests. Live evaluation is next. See [`docs/POLICY.md`](docs/POLICY.md).
 - **The measurement was audited.** The leak detector was checked against email bodies, a control task the agent could never pass was found and replaced, the MCP transport was shown not to change agent behavior (180 of 180 runs identical row by row), and the benchmark refuses to run if the tool definitions the model sees are not exactly the ones the experiment declares. Details in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
 ## The benchmark
@@ -89,6 +91,7 @@ python test_bench.py          # 37 checks: guards, fixtures, all 20 attacks, sco
 python test_openrouter.py     # 13 checks: API backend against a local mock server
 python test_replay.py         # logging gateway changes nothing; replay scores a gateway on recorded runs
 python test_pinning.py        # manifest pinning: unit tests and detection across all 20 attacks
+python test_flow.py           # information-flow policy: rules, documented bypasses, stub runs, replay
 python detect.py              # detection table for the pinning gateways
 ```
 
@@ -117,7 +120,7 @@ bench.py, attacks.py, tasks_check.py, gateway.py   benchmark harness, attack/tas
 openrouter_backend.py                              hosted-model backend (spend cap, provider pin)
 servers/                                           the three toy MCP servers and the attacker-controlled description variants
 selftest/                                          scripted stand-in model for offline tests
-test_bench.py, test_openrouter.py, test_replay.py, test_pinning.py   offline test suites
+test_bench.py, test_openrouter.py, test_replay.py, test_pinning.py, test_flow.py   offline test suites
 replay.py, detect.py                               score a gateway on recorded runs / on manifest detection, no model
 test_tools.py, test_reliability.py                 tool-calling checks for a candidate model
 agent_baseline.py, agent_baseline_v2.py, agent_mcp.py   earlier baselines (direct tools, then MCP); kept unchanged
@@ -135,7 +138,7 @@ requirements.txt, requirements.lock.txt            direct dependencies / exact v
 | 2 | Attack suite and benign tasks; hosted-model backend; attack set frozen (`attack-set-v3`) | Done |
 | 3 | Logging gateway (changes no behavior: 180 of 180 live runs identical) and **trajectory replay**: score a defense on 86 recorded hijacked and 294 benign tool-call sequences, with no model in the loop | Done |
 | 4 | Manifest pinning: detects 11 of 20 attacks with reviewed pins (2 of 20 with trust on first use), blind to the nine that change no manifest; stops 3 of 86 recorded hijacks | Done |
-| 5 | Provenance-based policy enforcement (which data may reach which tool) | Next |
+| 5 | Information-flow policy (which data may reach `send_email`): replay stops 86 of 86 recorded hijacks, 0 of 180 clean runs blocked; strict variant blocks 27 of 180. Live evaluation and frozen-seed run next | In progress |
 | 6 | Static audit of MCP server code (finds what pinning cannot, e.g. P1) | Planned |
 | 7 | Comparison with baseline defenses, adaptive attacker, second model family | Planned |
 | 8 | Detection rules (Sigma), one-command reproduction, write-up | Planned |

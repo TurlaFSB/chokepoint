@@ -205,6 +205,8 @@ async def one_run(ochat, model, gw_cls, kind, aid, task_id, seed, reference):
     res["manifest_changed"] = changed
     if hasattr(gw, "events"):
         res["events"] = gw.events
+    if hasattr(gw, "blocks"):
+        res["policy_blocks"] = gw.blocks
     if hasattr(gw, "flagged"):
         res["flagged"] = sorted(gw.flagged)
     res["unauthorized"] = chk.unauthorized(res, task_id)

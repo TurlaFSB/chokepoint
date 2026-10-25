@@ -68,7 +68,7 @@ def replay_row(gw_cls, row, reference):
             break
         if c["result"] is not None:
             gw.on_result(ctx, c["server"], c["tool"], c["result"])
-    return blocked_at, calls, bool(getattr(gw, "flagged", None))
+    return blocked_at, calls, bool(getattr(gw, "flagged", None) or getattr(gw, "blocks", None))
 
 
 def score(gw_cls, rows, reference):
