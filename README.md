@@ -154,6 +154,8 @@ $env:OPENROUTER_API_KEY = "<your key>"
 python bench.py deepseek/deepseek-v4.1-flash-20260910 --backend openrouter --provider CoreWeave --max-spend 0.50 --seed-offset 1000 --seeds 3 --attacks C1,T2,T4 --attack-tasks followups --no-controls --tag smoke
 ```
 
+**Hosted model, clean controls** (`deepseek/deepseek-v4.1-flash-20260910`, CoreWeave, reasoning off, 30 seeds x 6 tasks = 180 runs): task success 30/30 on every task (95% CI 89-100%), 0 unauthorized emails, 0 tool errors. Cost $0.0268 for the 180 runs (about $0.00015 per run). The first 9-run smoke test (C1, T2, T4 on followups, seeds 1001-1003) cost $0.0042 and showed 0/3 unauthorized for all three; that is too small a sample to conclude anything. File: `results_bench_deepseek-deepseek-v4.1-flash-20260910_controls.jsonl` (rows written before the `served` field was added do not carry the serving provider; the smoke test and the first run reported CoreWeave).
+
 Results are written to `results_bench_<model>[_tag].jsonl` (resumable) with a `_summary.json`. **Status: development runs 1 and 2 done (above); second model pending; set not frozen.**
 
 ## Results so far

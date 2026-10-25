@@ -333,6 +333,8 @@ async def amain():
     gw_cls = GATEWAYS[args.gateway]
     for i, (kind, aid, t, seed) in enumerate(todo, start=1):
         before = totals() if totals else None
+        if totals:
+            ochat.run_seen = set()
         try:
             res = await one_run(ochat, args.model, gw_cls, kind, aid, t, seed, reference)
         except Exception as e:
@@ -345,6 +347,7 @@ async def amain():
         if totals:
             after = totals()
             row["usage"] = {k: round(after[k] - before[k], 6) for k in after}
+            row["served"] = sorted("%s@%s" % x for x in ochat.run_seen)
         with open(runs_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
         rows.append(row)
@@ -362,7 +365,8 @@ async def amain():
     if totals:
         spent = sum(r.get("usage", {}).get("cost", 0) for r in rows)
         api = {"backend": args.backend, "provider_pinned": args.provider or None, "reasoning": args.reasoning,
-               "max_tokens": args.max_tokens, "served": sorted(str(x) for x in ochat.seen),
+               "max_tokens": args.max_tokens,
+               "served": sorted({x for r in rows for x in r.get("served", [])}),
                "cost_usd_all_rows": round(spent, 4)}
         print("API cost across the rows in this summary: $%.4f | served by: %s" % (spent, api["served"]))
     meta = {"harness": "bench", "model": args.model, "gateway": args.gateway,

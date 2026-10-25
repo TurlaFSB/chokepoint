@@ -86,6 +86,7 @@ async def main(port):
     check(isinstance(asst["tool_calls"][0]["function"]["arguments"], str)
           and tool["tool_call_id"] == asst["tool_calls"][0]["id"],
           "assistant tool call replayed with JSON-string arguments; tool result carries the matching id")
+    check(c.run_seen == {("m", "CoreWeave")}, "serving model and provider recorded per run")
     check(abs(c.cost - 0.002) < 1e-9 and c.tokens_in == 2000 and c.calls == 2, "cost and tokens accumulated")
 
     # 2. spend cap

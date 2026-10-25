@@ -76,6 +76,7 @@ class AsyncClient:
         self.http = httpx.AsyncClient(timeout=timeout)
         self.cost, self.tokens_in, self.tokens_out, self.calls = 0.0, 0, 0, 0
         self.seen = set()
+        self.run_seen = set()      # reset by the harness before each run
 
     def totals(self):
         return {"cost": self.cost, "tokens_in": self.tokens_in, "tokens_out": self.tokens_out, "calls": self.calls}
@@ -113,6 +114,7 @@ class AsyncClient:
         if self.provider and served and served != self.provider:
             raise ProviderMismatch("served by %s, pinned to %s" % (served, self.provider))
         self.seen.add((data.get("model"), served))
+        self.run_seen.add((data.get("model"), served))
         usage = data.get("usage") or {}
         tin, tout = int(usage.get("prompt_tokens", 0)), int(usage.get("completion_tokens", 0))
         cost = usage.get("cost")
