@@ -111,10 +111,18 @@ async def reference_manifest():
     return tool_hashes(manifests)
 
 
-def make_client(model):
+def make_client(model, args=None):
     if model == "stub":
         from selftest import stub_model
         return stub_model.AsyncClient()
+    if args is not None and args.backend == "openrouter":
+        import os
+        from openrouter_backend import AsyncClient
+        key = os.environ.get(args.api_key_env)
+        if not key:
+            raise HarnessError("environment variable %s is not set" % args.api_key_env)
+        return AsyncClient(key, base_url=args.base_url, provider=args.provider or None,
+                           reasoning=args.reasoning, max_spend=args.max_spend, max_tokens=args.max_tokens)
     import ollama
     return ollama.AsyncClient(host="http://127.0.0.1:11434")
 
@@ -254,6 +262,13 @@ async def amain():
     ap.add_argument("--no-controls", action="store_true")
     ap.add_argument("--controls-only", action="store_true")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--backend", default="ollama", choices=["ollama", "openrouter"])
+    ap.add_argument("--base-url", default="https://openrouter.ai/api/v1")
+    ap.add_argument("--provider", default="", help="pin the API provider, e.g. CoreWeave (no fallbacks)")
+    ap.add_argument("--api-key-env", default="OPENROUTER_API_KEY", help="name of the environment variable holding the key")
+    ap.add_argument("--max-spend", type=float, default=1.0, help="hard spend cap in USD for this command (API backend)")
+    ap.add_argument("--reasoning", default="off", choices=["off", "default"])
+    ap.add_argument("--max-tokens", type=int, default=1024)
     args = ap.parse_args()
 
     def pick(arg, allowed, what):
@@ -309,9 +324,15 @@ async def amain():
     print("reference manifest:", ", ".join("%s=%s" % (n, h[:8]) for tools in reference.values()
                                            for n, h in tools.items()))
 
-    ochat = make_client(args.model)
+    try:
+        ochat = make_client(args.model, args)
+    except HarnessError as e:
+        print("STOP:", e)
+        sys.exit(1)
+    totals = getattr(ochat, "totals", None)
     gw_cls = GATEWAYS[args.gateway]
     for i, (kind, aid, t, seed) in enumerate(todo, start=1):
+        before = totals() if totals else None
         try:
             res = await one_run(ochat, args.model, gw_cls, kind, aid, t, seed, reference)
         except Exception as e:
@@ -321,6 +342,9 @@ async def amain():
         row = {"harness": "bench", "model": args.model, "gateway": args.gateway,
                "kind": kind, "attack": aid, "task": t, "seed": seed}
         row.update(res)
+        if totals:
+            after = totals()
+            row["usage"] = {k: round(after[k] - before[k], 6) for k in after}
         with open(runs_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
         rows.append(row)
@@ -334,13 +358,20 @@ async def amain():
     print_summary(summary, args.model, args.gateway)
     total_errors = sum(r.get("tool_errors", 0) for r in rows)
     print("\ntool errors across all runs:", total_errors)
+    api = None
+    if totals:
+        spent = sum(r.get("usage", {}).get("cost", 0) for r in rows)
+        api = {"backend": args.backend, "provider_pinned": args.provider or None, "reasoning": args.reasoning,
+               "max_tokens": args.max_tokens, "served": sorted(str(x) for x in ochat.seen),
+               "cost_usd_all_rows": round(spent, 4)}
+        print("API cost across the rows in this summary: $%.4f | served by: %s" % (spent, api["served"]))
     meta = {"harness": "bench", "model": args.model, "gateway": args.gateway,
             "seeds": args.seeds, "seed_offset": args.seed_offset, "control_seeds": args.control_seeds,
             "temperature": base.TEMPERATURE, "num_ctx": base.NUM_CTX, "max_turns": base.MAX_TURNS,
             "python": platform.python_version(),
             "ollama_python_package": base.package_version("ollama"),
             "mcp_package": base.package_version("mcp"),
-            "reference_manifest": reference, "tool_errors": total_errors,
+            "api": api, "reference_manifest": reference, "tool_errors": total_errors,
             "attacks": {k: {"cls": v["cls"], "desc": v["desc"], "payload": v["payload"],
                             "files": v["files"], "notes": v["notes"], "mail": v["mail"], "approval": v["approval"],
                             "layout": v["layout"]} for k, v in ATTACKS.items()},
