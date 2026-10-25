@@ -83,3 +83,13 @@ Each condition is run for repeated seeds (10 per attack condition, 30 per clean 
 - **Repeated runs are not independent samples.** The direct-tool and MCP baselines are identical row for row and are therefore one sample, not two; they are never pooled.
 - **One local model, one hosted model.** Susceptibility is model-dependent.
 - **Hosted-model drift.** Hosted runs record the requested model id, the serving provider and the run date; they are a supplement to the local results.
+
+## 10. Planned: model-independent evaluation by trajectory replay
+
+Live evaluation has a ceiling: a strong model resists every attack (RESULTS experiment 10) and a weak one is noisy and cannot show a defense working where the undefended rate is near 0. A gateway is a deterministic function of the tool calls it sees, so it can also be scored without a model:
+
+1. **Record** tool-call sequences (server, tool, arguments, results, and which inputs were untrusted) from existing runs. Hijacked trajectories come from runs where the local model was actually steered (unauthorized email sent); benign trajectories come from clean controls of both models.
+2. **Replay** each sequence through the gateway under test, call by call.
+3. **Score**: block rate on hijacked trajectories (security), allow rate on benign trajectories (utility), and for manifest defenses detection and false-flag rates on the served manifests.
+
+This is exactly reproducible and costs nothing per replay. It does not replace live runs, which remain the end-to-end check on the susceptible model; it complements them where the live signal is flat. Trajectories are recorded from the undefended runs and are not tuned.
