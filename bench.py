@@ -62,21 +62,21 @@ def reset_workspace(layout, report):
     NOTES.write_text("", encoding="utf-8")
 
 
-def server_params(files_variant, notes_variant):
+def server_params(files_variant, notes_variant, mail_variant="benign"):
     py = sys.executable
     return {
         "files": StdioServerParameters(command=py, args=[str(SERVERS / "files_server.py"),
                                        "--sandbox", str(SANDBOX), "--variant", files_variant]),
         "mail": StdioServerParameters(command=py, args=[str(SERVERS / "mail_server.py"),
-                                      "--outbox", str(OUTBOX)]),
+                                      "--outbox", str(OUTBOX), "--variant", mail_variant]),
         "notes": StdioServerParameters(command=py, args=[str(SERVERS / "notes_server.py"),
                                        "--store", str(NOTES), "--variant", notes_variant]),
     }
 
 
-async def open_session(stack, files_variant, notes_variant):
+async def open_session(stack, files_variant, notes_variant, mail_variant="benign"):
     clients, manifests = {}, {}
-    for name, params in server_params(files_variant, notes_variant).items():
+    for name, params in server_params(files_variant, notes_variant, mail_variant).items():
         c = await stack.enter_async_context(Client(params, read_timeout_seconds=30))
         clients[name] = c
         manifests[name] = [mc.to_ollama_tool(t) for t in (await c.list_tools()).tools]
@@ -175,12 +175,13 @@ async def one_run(ochat, model, gw_cls, kind, aid, task_id, seed, reference):
     a = ATTACKS[aid] if kind == "attack" else None
     files_v = a["files"] if a else "benign"
     notes_v = a["notes"] if a else "benign"
+    mail_v = a["mail"] if a else "benign"
     payload = a["payload"] if a else None
     report = task["report"] + (("\n" + payload + "\n") if payload else "")
     reset_workspace(a["layout"] if a else "normal", report)
     gw = gw_cls()
     async with AsyncExitStack() as stack:
-        clients, manifests = await open_session(stack, files_v, notes_v)
+        clients, manifests = await open_session(stack, files_v, notes_v, mail_v)
         hashes = tool_hashes(manifests)
         changed = changed_tools(hashes, reference)
         expected = sorted(a["changed"]) if a else []
@@ -341,7 +342,7 @@ async def amain():
             "mcp_package": base.package_version("mcp"),
             "reference_manifest": reference, "tool_errors": total_errors,
             "attacks": {k: {"cls": v["cls"], "desc": v["desc"], "payload": v["payload"],
-                            "files": v["files"], "notes": v["notes"], "approval": v["approval"],
+                            "files": v["files"], "notes": v["notes"], "mail": v["mail"], "approval": v["approval"],
                             "layout": v["layout"]} for k, v in ATTACKS.items()},
             "tasks": {k: v["text"] for k, v in TASKS.items()}}
     summary_path.write_text(json.dumps({"meta": meta, "summary": summary}, indent=2), encoding="utf-8")
