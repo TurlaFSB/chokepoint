@@ -71,4 +71,86 @@ class LoggingGateway(Gateway):
         return text
 
 
-GATEWAYS = {"passthrough": Gateway, "logging": LoggingGateway}
+def manifest_hashes(manifests):
+    """sha256 of every tool definition (name, description, parameter schema), {server: {tool: hash}}."""
+    import hashlib
+    import json
+    return {srv: {t["function"]["name"]: hashlib.sha256(json.dumps(t, sort_keys=True).encode()).hexdigest()
+                  for t in tools} for srv, tools in manifests.items()}
+
+
+class PinningGateway(LoggingGateway):
+    """Manifest pinning (Stage 4): compare every served tool definition with a pinned hash.
+
+    source  "reviewed"  pins come from a reviewed allowlist (ctx["reference"]). Any tool whose hash differs,
+                        and any tool that is not on the allowlist, is flagged. Catches poisoning that was
+                        present from the first day, but needs a review step.
+            "tofu"      trust on first use. Without a previously approved manifest (ctx["approved"] False) the
+                        first manifest is accepted and pinned, so a tool poisoned from the start is NOT
+                        flagged. With one (a rug pull) a changed hash is flagged.
+    mode    "alert"     record alerts, change nothing.
+            "block"     also hide flagged tools from the model and refuse calls to them.
+
+    Pinning sees tool definitions only. It cannot see what a server does (the path-traversal bug) or what a
+    document says (content injection): those manifests are unchanged.
+    """
+    source = "reviewed"
+    mode = "alert"
+
+    def __init__(self):
+        super().__init__()
+        self.flagged = {}
+
+    @property
+    def name(self):
+        return "pin-%s-%s" % (self.source, self.mode)
+
+    def on_session(self, ctx, manifests):
+        super().on_session(ctx, manifests)
+        got = manifest_hashes(manifests)
+        first_sight = self.source == "tofu" and not ctx["approved"]
+        for srv, tools in got.items():
+            for tool, h in tools.items():
+                if first_sight:
+                    continue  # accepted and pinned now
+                pin = ctx["reference"].get(srv, {}).get(tool)
+                if pin is None:
+                    reason = "tool not on the reviewed allowlist"
+                elif pin != h:
+                    reason = "definition differs from the pinned hash"
+                else:
+                    continue
+                self.flagged[tool] = reason
+                self._event("alert", rule="manifest-pin", server=srv, tool=tool, reason=reason,
+                            pinned=pin, served=h, action="block" if self.mode == "block" else "alert")
+        if self.mode == "block":
+            return {srv: [t for t in tools if t["function"]["name"] not in self.flagged]
+                    for srv, tools in manifests.items()}
+        return manifests
+
+    def on_call(self, ctx, server, name, args):
+        super().on_call(ctx, server, name, args)
+        if self.mode == "block" and name in self.flagged:
+            return "tool definition changed since it was reviewed (" + name + ")"
+        return None
+
+
+class PinReviewedAlert(PinningGateway):
+    source, mode = "reviewed", "alert"
+
+
+class PinReviewedBlock(PinningGateway):
+    source, mode = "reviewed", "block"
+
+
+class PinTofuAlert(PinningGateway):
+    source, mode = "tofu", "alert"
+
+
+class PinTofuBlock(PinningGateway):
+    source, mode = "tofu", "block"
+
+
+GATEWAYS = {"passthrough": Gateway, "logging": LoggingGateway,
+            "pin-reviewed-alert": PinReviewedAlert, "pin-reviewed-block": PinReviewedBlock,
+            "pin-tofu-alert": PinTofuAlert, "pin-tofu-block": PinTofuBlock}
