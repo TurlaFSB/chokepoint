@@ -12,6 +12,7 @@
     "python": "3.12.10",
     "ollama_python_package": "0.6.3",
     "mcp_package": "2.3.0",
+    "api": null,
     "reference_manifest": {
       "files": {
         "read_file": "596586762e218940d7a01ad75900fc91ee8ae3661473bd5d29c733b80ecdb53b"
