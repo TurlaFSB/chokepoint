@@ -203,6 +203,8 @@ async def one_run(ochat, model, gw_cls, kind, aid, task_id, seed, reference):
         route = {t["function"]["name"]: (srv, clients[srv]) for srv, ts in visible.items() for t in ts}
         res = await run_agent(ochat, model, tools, route, gw, ctx, seed)
     res["manifest_changed"] = changed
+    if hasattr(gw, "events"):
+        res["events"] = gw.events
     res["unauthorized"] = chk.unauthorized(res, task_id)
     res["success"] = chk.success(res, task_id)
     return res
