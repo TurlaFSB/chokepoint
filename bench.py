@@ -20,6 +20,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 import platform
 import re
 import shutil
@@ -60,7 +61,37 @@ class HarnessError(Exception):
     pass
 
 
+_LOCK = None
+
+
+def acquire_workspace_lock():
+    """One process at a time may use the shared work/ folder (sandbox, outbox, notes).
+
+    Two benchmark processes at once delete each other's files and count each other's emails, which
+    silently corrupts results. The lock is held until the process exits and is released by the operating
+    system if it crashes, so there is no stale lock to clean up.
+    """
+    global _LOCK
+    if _LOCK is not None:
+        return
+    f = open(ROOT / ".bench.lock", "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        raise HarnessError("another benchmark process is already running in this folder (they share work/ and would "
+                           "corrupt each other's results). Wait for it to finish or stop it, then run this again.")
+    _LOCK = f
+
+
 def reset_workspace(layout, report):
+    acquire_workspace_lock()
     if WORK.exists():
         shutil.rmtree(WORK)
     SANDBOX.mkdir(parents=True)

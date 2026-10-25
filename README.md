@@ -92,6 +92,7 @@ python test_openrouter.py     # 13 checks: API backend against a local mock serv
 python test_replay.py         # logging gateway changes nothing; replay scores a gateway on recorded runs
 python test_pinning.py        # manifest pinning: unit tests and detection across all 20 attacks
 python test_flow.py           # information-flow policy: rules, documented bypasses, stub runs, replay
+python test_lock.py           # two benchmark processes cannot share the work/ folder
 python detect.py              # detection table for the pinning gateways
 ```
 
