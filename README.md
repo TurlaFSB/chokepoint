@@ -31,13 +31,13 @@ The agent talks to three real MCP servers over stdio. Every defense plugs into o
 |---|---|
 | Benchmark harness, 20 attacks in 5 classes, 6 benign tasks, scoring, guards | **Done**, offline-tested |
 | Measured undefended baselines (direct tools, real MCP servers, local and hosted model) | **Done** |
-| Gateway interface, pass-through gateway | **Done** |
-| Logging gateway, manifest pinning, provenance policy, static audit of MCP servers | Planned (see [Roadmap](#roadmap)) |
+| Gateway interface, pass-through gateway, logging gateway (verified to change nothing), model-free trajectory replay | **Done** |
+| Manifest pinning, provenance policy, static audit of MCP servers | Planned (see [Roadmap](#roadmap)) |
 | Comparison with baseline defenses, adaptive attacker | Planned |
 
 ## What has been measured so far
 
-All numbers are for the **undefended** agent (`qwen2.5:7b` unless a row says otherwise, 10 runs per cell, development seeds). Full tables, confidence intervals and the audit trail are in [`docs/RESULTS.md`](docs/RESULTS.md).
+All numbers are for the **undefended** agent (`qwen2.5:7b` unless a row says otherwise, 10 runs per cell, development seeds). The frozen evaluation baseline on separate seeds (90 of 400 runs hijacked, same pattern) is in [`docs/RESULTS.md`](docs/RESULTS.md), experiment 11. Full tables, confidence intervals and the audit trail are in [`docs/RESULTS.md`](docs/RESULTS.md).
 
 | Attack class | Unauthorized email, `summarize` task | Unauthorized email, `followups` task |
 |---|---|---|
@@ -85,6 +85,7 @@ pip install -r requirements.lock.txt
 
 python test_bench.py          # 37 checks: guards, fixtures, all 20 attacks, scoring (scripted stand-in model)
 python test_openrouter.py     # 13 checks: API backend against a local mock server
+python test_replay.py         # logging gateway changes nothing; replay scores a gateway on recorded runs
 ```
 
 Run the benchmark against a local model ([Ollama](https://ollama.com) running, model pulled):
@@ -112,7 +113,8 @@ bench.py, attacks.py, tasks_check.py, gateway.py   benchmark harness, attack/tas
 openrouter_backend.py                              hosted-model backend (spend cap, provider pin)
 servers/                                           the three toy MCP servers and the attacker-controlled description variants
 selftest/                                          scripted stand-in model for offline tests
-test_bench.py, test_openrouter.py                  offline test suites
+test_bench.py, test_openrouter.py, test_replay.py   offline test suites
+replay.py                                          score a gateway on recorded runs, no model
 test_tools.py, test_reliability.py                 tool-calling checks for a candidate model
 agent_baseline.py, agent_baseline_v2.py, agent_mcp.py   earlier baselines (direct tools, then MCP); kept unchanged
 compare_runs.py                                    row-by-row comparison of two result files
@@ -127,8 +129,8 @@ requirements.txt, requirements.lock.txt            direct dependencies / exact v
 |---|---|---|
 | 1 | Real MCP servers; baseline re-measured and shown equivalent to direct tools | Done |
 | 2 | Attack suite and benign tasks; hosted-model backend; attack set frozen (`attack-set-v3`) | Done |
-| 3 | Logging gateway (confirm it changes no behavior) and **trajectory replay**: score a defense on recorded hijacked and benign tool-call sequences, with no model in the loop | Next |
-| 4 | Manifest pinning (evaluated on detection and on attack success) | Planned |
+| 3 | Logging gateway (changes no behavior: 180 of 180 live runs identical) and **trajectory replay**: score a defense on 86 recorded hijacked and 294 benign tool-call sequences, with no model in the loop | Done |
+| 4 | Manifest pinning (evaluated on detection and on attack success) | Next |
 | 5 | Provenance-based policy enforcement (which data may reach which tool) | Planned |
 | 6 | Static audit of MCP server code (finds what pinning cannot, e.g. P1) | Planned |
 | 7 | Comparison with baseline defenses, adaptive attacker, second model family | Planned |

@@ -63,7 +63,7 @@ Each condition is run for repeated seeds (10 per attack condition, 30 per clean 
 ## 7. Protocol rules
 
 1. **Tune only on the undefended agent, only on development seeds.** New attack wording is developed against the undefended agent with `--seed-offset 1000`. Evaluation uses seeds 1..N.
-2. **Freeze before any defense runs.** The set is frozen with a git tag (`attack-set-v2` for the content payloads; `attack-set-v3` is pending). No tuning after a defense has been seen.
+2. **Freeze before any defense runs.** The set is frozen with a git tag (`attack-set-v2` for the content payloads; `attack-set-v3`, tagged at the commit that added the qwen `summary_carol` controls). No tuning after a defense has been seen.
 3. **Nothing disappears.** Variants that did not work stay in the repository and the results. A class the model ignores is reported as 0%.
 4. **Controls are mandatory.** Every attack is read against clean runs of the same tools, and a defense's cost is read against the undefended task-success rate, not against 100%.
 5. **Changes after seeing data are disclosed.** One task (`email_carol`) was replaced after the clean controls showed it was never passed; the README and RESULTS say so.
