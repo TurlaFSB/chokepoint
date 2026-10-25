@@ -141,7 +141,7 @@ requirements.txt, requirements.lock.txt            direct dependencies / exact v
 | 4 | Manifest pinning: detects 11 of 20 attacks with reviewed pins (2 of 20 with trust on first use), blind to the nine that change no manifest; stops 3 of 86 recorded hijacks | Done |
 | 5 | Information-flow policy (which data may reach `send_email`): replay stops 86 of 86 recorded hijacks, 0 of 180 clean runs blocked; strict variant blocks 27 of 180. Live evaluation and frozen-seed run next | In progress |
 | 6 | Static audit of MCP server code (finds what pinning cannot, e.g. P1) | Planned |
-| 7 | Comparison with baseline defenses, adaptive attacker, second model family | Planned |
+| 7 | Comparison with baseline defenses; **adaptive attacks aimed at the hosted model that resisted all 20 frozen attacks (DeepSeek), written against the frozen policy and kept as a separate set** | Planned |
 | 8 | Detection rules (Sigma), one-command reproduction, write-up | Planned |
 
 ## Limitations

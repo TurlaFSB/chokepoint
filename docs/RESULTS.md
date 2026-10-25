@@ -254,3 +254,4 @@ Reading it:
 - **No clean control is blocked by the proposed policy** (0 of 180), and no non-hijacked attack run is blocked.
 - Not yet measured: live runs where the model sees the block (does it retry another address, report the block, abandon the task?), and the frozen evaluation seeds. Both are the next steps.
 
+Not run, on purpose: the 400-run DeepSeek attack matrix with the policy in the loop. DeepSeek ignored all 20 attacks undefended, so it would score 0 with or without the policy and show nothing about attack success. The policy's cost on a strong model is measured with its clean controls instead, and attacks that can hijack it are written in Stage 7 against the frozen policy.
