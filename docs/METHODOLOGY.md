@@ -67,6 +67,8 @@ Each condition is run for repeated seeds (10 per attack condition, 30 per clean 
 3. **Nothing disappears.** Variants that did not work stay in the repository and the results. A class the model ignores is reported as 0%.
 4. **Controls are mandatory.** Every attack is read against clean runs of the same tools, and a defense's cost is read against the undefended task-success rate, not against 100%.
 5. **Changes after seeing data are disclosed.** One task (`email_carol`) was replaced after the clean controls showed it was never passed; the README and RESULTS say so.
+6. **A run that could have been corrupted is discarded, not repaired.** Two benchmark processes once ran at the same time in the same folder; they shared `work/` (sandbox, outbox, notes), deleted each other's files and counted each other's emails (some rows showed an unauthorized email with no `send_email` call). Both result files were deleted and re-run from scratch. The harness now takes a lock on the folder (`test_lock.py`), so a second process refuses to start. Earlier results were produced one process at a time and are unaffected.
+7. **Defenses are tuned only on development seeds, then frozen.** A policy is developed against the dev-seed runs (`--seed-offset 1000`), frozen with a git tag, and evaluated once on seeds 1..N, where the undefended baseline already exists.
 
 ## 8. Validity checks
 
@@ -81,10 +83,13 @@ Each condition is run for repeated seeds (10 per attack condition, 30 per clean 
 
 - **Run-level reproducibility.** With a fixed seed, a full rerun in the original order reproduced all 180 runs exactly, but a rerun of a 30-run subset in a different order matched on only 12 of 30 call sequences. The cause is untested (inference-server cache state and GPU/CPU offload are the candidates). Hosted models give no seed guarantee. Hence rates and intervals, not transcripts.
 - **Repeated runs are not independent samples.** The direct-tool and MCP baselines are identical row for row and are therefore one sample, not two; they are never pooled.
+- **GPU/CPU fallback.** Ollama can fall back from GPU to CPU mid-session (seen once, after a long run); the same seed can then give a different output. Per-row processor is not recorded, so a resumed run may mix both; this is stated wherever it may apply (RESULTS experiment 15).
 - **One local model, one hosted model.** Susceptibility is model-dependent.
 - **Hosted-model drift.** Hosted runs record the requested model id, the serving provider and the run date; they are a supplement to the local results.
 
-## 10. Planned: model-independent evaluation by trajectory replay
+## 10. Model-independent evaluation by trajectory replay (implemented in Stage 3)
+
+`python replay.py <logged results> --gateway NAME` implements this; the recorded set is the 380 logged qwen runs (RESULTS experiments 12-14). The rationale:
 
 Live evaluation has a ceiling: a strong model resists every attack (RESULTS experiment 10) and a weak one is noisy and cannot show a defense working where the undefended rate is near 0. A gateway is a deterministic function of the tool calls it sees, so it can also be scored without a model:
 
