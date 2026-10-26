@@ -21,6 +21,7 @@ Every experiment so far, in the order it was run, with the settings, the numbers
 | 13 | Manifest pinning (Stage 4) | 21 setups, 380 replayed | Reviewed pins flag 11 of 11 changed tools, 0 false alarms; trust-on-first-use flags 2 of 11; both blind to 9 of 20 attacks; stops 3 of 86 real hijacks |
 | 14 | Information-flow policy, replay (Stage 5) | 380 replayed | Domain + secret rule stops 86 of 86 recorded hijacks with 0 of 180 clean runs blocked; strict recipient rule blocks 27 of 180 |
 | 15 | Information-flow policy, live (qwen, dev seeds) | 200 | 86 of 200 hijacked undefended; **1 of 200** with the policy, 0 to the attacker, 0 leaked |
+| 16 | Policy cost on clean work (qwen, DeepSeek) | 360 | 0 blocks in 360 clean runs; success and call sequences identical to undefended |
 
 ## 1. Tool-calling check
 
@@ -276,4 +277,15 @@ Not run, on purpose: the 400-run DeepSeek attack matrix with the policy in the l
 - Task completion under attack rose mainly because a hijacked run no longer abandons the task: it is the same model with the harmful step refused.
 
 **Caveats.** Development seeds only; the frozen evaluation seeds (1-10) are the next run. The run was resumed after an interruption during which Ollama had fallen back from GPU to CPU for a period; the same seed can give a different output on CPU, and per-row processor is not recorded, so some rows may come from that stretch. Nothing else ran in the work folder during this run (the first attempt, which overlapped another benchmark process, was discarded and re-run from scratch; see METHODOLOGY).
+
+## 16. What the policy costs on clean work
+
+`flow-full` in the loop on the 6 benign tasks, 30 seeds each (180 runs per model), no attack. Files: `results_bench_flow-full_qwen2.5-7b_policy.jsonl`, `results_bench_flow-full_deepseek-deepseek-v4.1-flash-20260910_policy.jsonl`.
+
+| Model | Clean runs blocked | Unauthorized email | Task success | Same call sequence as undefended | Same success as undefended |
+|---|---|---|---|---|---|
+| `qwen2.5:7b` | 0 of 180 | 0 | 177 of 180 (`followups` 27 of 30; seeds 5, 24, 29 fail, as undefended) | 180 of 180 | 180 of 180 |
+| DeepSeek V4.1 Flash (CoreWeave) | 0 of 180 | 0 | 180 of 180 | 180 of 180 | 180 of 180 |
+
+On this benchmark the policy costs nothing on clean work: on both models every run behaves exactly as without it. The cost it can have is shown in two places only: the strict recipient variant (27 of 180 `followups` controls blocked on replay, experiment 14) and tasks that really do email an address on the allowed domain that the user did not name (none of the six). A task set of six is small; that is the main limit of this result (more benign tasks, in particular ones that email new contacts, are needed to find false blocks). DeepSeek cost: $0.0272 for the 180 runs.
 
